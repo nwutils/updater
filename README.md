@@ -1,14 +1,12 @@
 
 # @nwutils/updater
 
-[![npm](https://img.shields.io/npm/v/node-webkit-updater.svg?style=flat)](https://www.npmjs.com/package/node-webkit-updater)
-[![Join the chat at https://gitter.im/nwjs/nwjs](https://badges.gitter.im/nwjs/nwjs.svg)](https://gitter.im/nwjs/nwjs)
+[![npm](https://img.shields.io/npm/v/node-webkit-updater.svg?style=flat)](https://www.npmjs.com/package/nwutils/updater)
 
 Update NW.js applications. Linux is supported today; macOS and Windows support is planned.
 
 ## Getting Started
 
-1. Install [Volta](https://volta.sh/).
 1. `npm i @nwutils/updater`
 
 The updater only uses Node.js built-in modules, imported as ES modules. Enable
