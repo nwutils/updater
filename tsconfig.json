@@ -7,12 +7,11 @@
         "rootDir": ".",
         "outDir": "types",
         "strict": true,
-        "target": "ES2020",
+        "target": "esnext",
         "lib": [
-            "ES2020"
+            "ESNext"
         ],
         "module": "ESNext",
-        // "moduleResolution": "node",
         "types": [
             "node"
         ],
@@ -21,5 +20,8 @@
     },
     "include": [
         "src/**/*.js"
+    ],
+    "exclude": [
+        "src/updater.js"
     ]
 }
