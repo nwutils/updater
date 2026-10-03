@@ -10,6 +10,9 @@ import nwbuild from "nw-builder";
 import selenium from "selenium-webdriver";
 import chrome from "selenium-webdriver/chrome.js";
 
+/* Pinned so the fixture apps and chromedriver come from the same NW.js release. */
+const NW_VERSION = "0.111.1";
+
 describe("updater test suite", function () {
     /* Setup updater staging server. */
     const app = express();
@@ -26,7 +29,7 @@ describe("updater test suite", function () {
     ];
     seleniumArguments.push("headless=new");
     options.addArguments(seleniumArguments);
-    const chromeDriverPath = path.resolve("cache", "nwjs-sdk-v0.111.1-linux-x64", "chromedriver");
+    const chromeDriverPath = path.resolve("cache", `nwjs-sdk-v${NW_VERSION}-linux-x64`, "chromedriver");
     const service = new chrome.ServiceBuilder(chromeDriverPath).build();
 
     before(async function () {
@@ -39,7 +42,7 @@ describe("updater test suite", function () {
         /* Build NW.js applications for testing. */
         let nwOptions = {
             mode: "build",
-            version: "latest",
+            version: NW_VERSION,
             flavor: "sdk",
             platform: "linux",
             arch: "x64",
@@ -85,6 +88,11 @@ describe("updater test suite", function () {
         const button = await driver.findElement(selenium.By.id("check-for-updates-button"));
         await button.click();
 
+        /* checkNewVersion is asynchronous: wait for it to report a result. */
+        await driver.wait(async () => {
+            const text = await driver.findElement(statusLocator).getText();
+            return text !== "" && text !== "Checking for updates...";
+        }, 10000);
         const finalText = await driver.findElement(statusLocator).getText();
         assert.strictEqual(finalText, "A newer version is available.");
     });
