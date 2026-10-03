@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.1](https://github.com/nwutils/updater/compare/v0.4.0...v0.4.1) (2026-10-03)
+
+
+### Chores
+
+* **deps:** bump the npm group across 1 directory with 8 updates ([#194](https://github.com/nwutils/updater/issues/194)) ([12f1bd3](https://github.com/nwutils/updater/commit/12f1bd3912447ae7f6951a51da19dbb060f4f1aa))
+* **docs:** update badge ([40979da](https://github.com/nwutils/updater/commit/40979dae3e39e94cc71cdfbd6cee567bc3ea9429))
+
 ## [0.4.0](https://github.com/nwutils/updater/compare/v0.3.5...v0.4.0) (2026-10-03)
 
 
