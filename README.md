@@ -1,7 +1,7 @@
 
 # @nwutils/updater
 
-[![npm](https://img.shields.io/npm/v/node-webkit-updater.svg?style=flat)](https://www.npmjs.com/package/nwutils/updater)
+[![npm](https://img.shields.io/npm/v/@nwutils/updater/latest)](https://www.npmjs.com/package/@nwutils/updater/v/latest)
 
 Update NW.js applications. Linux is supported today; macOS and Windows support is planned.
 
