@@ -1,20 +1,55 @@
 name: cd
+
 on:
   push:
     branches:
       - main
 
 jobs:
-  release:
-    runs-on: ubuntu-22.04
+  release-please:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
     steps:
-      - uses: actions/checkout@v3.3.0
-      - uses: actions/setup-node@v3.6.0
+      - uses: actions/checkout@v7.0.1
         with:
-          node-version: 20
+          fetch-depth: 0
+
+      - id: release
+        uses: googleapis/release-please-action@v5.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: .github/release-please/config.json
+          manifest-file: .github/release-please/manifest.json
+
+  publish:
+    name: Publish @nwutils/updater to npm
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Read Node.js and npm versions from Volta
+        id: volta
+        run: |
+          echo "NODE_VERSION=$(jq -r '.volta.node' package.json)" >> "$GITHUB_ENV"
+          echo "NPM_VERSION=$(jq -r '.volta.npm' package.json)" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: "https://registry.npmjs.org"
+
+      - run: npm install -g npm@${{ env.NPM_VERSION }}
 
       - run: npm ci
+
       - run: npm run type
-      - uses: JS-DevTools/npm-publish@v2.1.0
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
+
+      - run: npm publish --tag latest --provenance --access public

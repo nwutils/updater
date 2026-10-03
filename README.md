@@ -220,5 +220,6 @@ It's assumed your app's executable is stored at the root of your package, named 
 
 ### Maintainer
 
-- npm trusted publishing is used for releases
-- a package is released when a maintainer creates a release note for a specific version
+- Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`).
+- [release-please](https://github.com/googleapis/release-please) keeps a release PR open that bumps the version and updates `CHANGELOG.md` from those commits.
+- Merging the release PR tags the release, creates the GitHub release and publishes to npm via trusted publishing (OIDC) with provenance - no npm token is needed.

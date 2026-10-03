@@ -1,6 +1,6 @@
 {
   "name": "@nwutils/updater",
-  "version": "0.4.0",
+  "version": "0.3.5",
   "description": "Update NW.js applications",
   "keywords": [
     "NW.js",
@@ -35,7 +35,7 @@
   "homepage": "https://github.com/nwutils/updater",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nwutils/updater.git"
+    "url": "git+https://github.com/nwutils/updater.git"
   },
   "scripts": {
     "lint": "echo 'Linting is not set up yet'",
