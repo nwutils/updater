@@ -4,7 +4,6 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 
-import { deleteSync } from 'del';
 import ncp from 'ncp';
 import semver from 'semver';
 
@@ -299,7 +298,7 @@ var pUnpack = {
 
     fs.stat(destinationDirectory, function (err, _) {
       if (!err) {
-        deleteSync(destinationDirectory, { force: true });
+        fs.rmSync(destinationDirectory, { recursive: true, force: true });
       }
       else {
         unzip();
@@ -405,7 +404,15 @@ var pInstall = {
       }
     }
     function deleteApp(cb) {
-      del(to + '/**/*', { force: true }, cb);
+      /* Empty `to`, keeping the directory itself. */
+      fs.readdir(to, function (err, entries) {
+        if (err) {
+          return cb(err.code === 'ENOENT' ? null : err);
+        }
+        Promise.all(entries.map(function (entry) {
+          return fs.promises.rm(path.join(to, entry), { recursive: true, force: true });
+        })).then(function () { cb(null); }, cb);
+      });
     }
     function appCopied(err) {
       if (err) {
