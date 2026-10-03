@@ -31,6 +31,10 @@ describe("updater test suite", function () {
 
     before(async function () {
         fs.copyFileSync("./src/main.js", "./tests/fixtures/app-current/updater.js");
+        /* Modules imported by main.js. */
+        fs.copyFileSync("./src/util.js", "./tests/fixtures/app-current/util.js");
+        fs.copyFileSync("./src/appImage.js", "./tests/fixtures/app-current/appImage.js");
+        fs.copyFileSync("./src/version.js", "./tests/fixtures/app-current/version.js");
 
         /* Build NW.js applications for testing. */
         let nwOptions = {

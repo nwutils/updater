@@ -1,14 +1,21 @@
 const path = await import("node:path");
-const process = await import("node:process");
 
 import Updater from "./updater.js";
 
 let updater;
-document.addEventListener("DOMContentLoaded", () => {
+
+function init() {
     updater = new Updater(nw.App.manifest, { temporaryDirectory: path.resolve(nw.App.dataPath, "tmpDir") });
     document.getElementById("check-for-updates-button").addEventListener("click", handleCheckForUpdates);
     document.getElementById("download-button").addEventListener("click", handleDownload);
-});
+}
+
+/* Module scripts may finish evaluating after DOMContentLoaded has fired. */
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+} else {
+    init();
+}
 
 function handleCheckForUpdates() {
     const updateStatus = document.getElementById("update-status");

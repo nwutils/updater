@@ -1,23 +1,12 @@
+const child_process = await import('node:child_process');
 const fs = await import('node:fs');
 const os = await import('node:os');
 const path = await import('node:path');
 const process = await import('node:process');
 const stream = await import('node:stream');
 
-import util from './util';
-
-function semverGt(v1, v2) {
-  const [major1, minor1, patch1] = v1.replace(/^v/i, '').split('.').map(Number);
-  const [major2, minor2, patch2] = v2.replace(/^v/i, '').split('.').map(Number);
-
-  if (major1 !== major2) {
-    return major1 > major2;
-  }
-  if (minor1 !== minor2) {
-    return minor1 > minor2;
-  }
-  return patch1 > patch2;
-}
+import util from './util.js';
+import version from './version.js';
 
 /**
  * @typedef {object} Platform
@@ -26,11 +15,8 @@ function semverGt(v1, v2) {
  */
 
 /**
- * @typedef {object} Packages
- * @property {Platform} win - The Windows package
- * @property {Platform} osx - The macOS package
- * @property {Platform} linux32 - The Linux 32-bit package
- * @property {Platform} linux64 - The Linux 64-bit package
+ * Packages keyed by `<platform>-<arch>`, eg. `linux-x64`.
+ * @typedef {Record<string, Platform>} Packages
  */
 
 /**
@@ -46,6 +32,10 @@ function semverGt(v1, v2) {
  * @property {string} temporaryDirectory - The path to a directory to download the updates to and unpack them in. Defaults to [`os.tmpdir()`](https://nodejs.org/api/os.html#os_os_tmpdir)
  */
 
+/**
+ * Key of the running platform in `manifest.packages`, eg. `linux-x64`.
+ * @returns {string}
+ */
 function getHost() {
   let platform;
 
@@ -104,12 +94,12 @@ class Updater {
         if (!response.ok) {
           throw new Error(`HTTP error: ${response.status}`);
         }
-        return response.json();
+        return /** @type {Promise<Manifest>} */ (response.json());
       })
       .then((data) => {
         const latestVersion = data.version;
 
-        cb(null, semverGt(latestVersion, currentVersion), data);
+        cb(null, version.gt(latestVersion, currentVersion), data);
       })
       .catch((error) => {
         cb(error, false, null);
@@ -165,37 +155,22 @@ class Updater {
   }
 
   /**
-     * Returns executed application path.
-     * 
-     * @returns {string}
-     */
+   * Returns the running application's path, ie. the directory containing
+   * its executable.
+   *
+   * @returns {string}
+   */
   getAppPath() {
-    /**
-     * @type {Object.<string, string>}
-     */
-    let appPath = {
-      osx: path.join(process.cwd(), '../../..'),
-      win: path.dirname(process.execPath)
-    };
-    appPath.linux32 = appPath.win;
-    appPath.linux64 = appPath.win;
-    return appPath[getHost()];
+    return path.dirname(process.execPath);
   }
 
   /**
-   * Returns current application executable.
-   * 
+   * Returns the running application's executable.
+   *
    * @returns {string}
    */
   getAppExec() {
-    let execFolder = this.getAppPath();
-    let exec = {
-      osx: '',
-      win: path.basename(process.execPath),
-      linux32: path.basename(process.execPath),
-      linux64: path.basename(process.execPath)
-    };
-    return path.join(execFolder, exec[platform]);
+    return process.execPath;
   }
 
   /**
@@ -204,36 +179,141 @@ class Updater {
    * @return {string}
    */
   getExecPathRelativeToPackage(manifest) {
-    const execPath = manifest.packages[platform] && manifest.packages[platform].execPath;
+    const execPath = manifest.packages[getHost()] && manifest.packages[getHost()].execPath;
 
     if (execPath) {
       return execPath;
     }
     else {
-      const suffix = {
-        win: '.exe',
-        mac: '.app'
-      };
-      return manifest.name + (suffix[platform] || '');
+      return manifest.name;
     }
   };
 
   /**
-     * Unpack the `filename` in temporary folder.
-     * 
-     * @param {string} filename
-     * @param {function} cb - Callback arguments: error, unpacked directory
-     * @param {Manifest} manifest
-     */
+   * Unpack the `filename` into its own directory in the temporary folder,
+   * ie. `<temporaryDirectory>/<filename without extension>`.
+   *
+   * @param {string} filename
+   * @param {(error: Error|null, newAppExec: string|null) => void} cb - Callback arguments: error, path to the new application's executable
+   * @param {Manifest} manifest - The remote manifest describing the downloaded package.
+   */
   unpack(filename, cb, manifest) {
-    util.decompress(filename, this.options.temporaryDirectory)
+    const destination = path.join(
+      this.options.temporaryDirectory,
+      path.basename(filename).replace(/(\.tar)?\.[^.]+$/, '')
+    );
+
+    fs.promises.rm(destination, { recursive: true, force: true })
+      .then(() => fs.promises.mkdir(destination, { recursive: true }))
+      .then(() => util.decompress(filename, destination))
       .then(() => {
-        cb(null, path.join(this.options.temporaryDirectory, this.getExecPathRelativeToPackage(manifest)));
+        cb(null, path.join(destination, this.getExecPathRelativeToPackage(manifest)));
       })
       .catch((err) => {
         cb(err, null);
       });
   }
+
+  /**
+   * Runs the unpacked new application, passing `args` to it. Quit the
+   * running application afterwards (eg. `nw.App.quit()`), so the new
+   * application can replace it - see `install`.
+   *
+   * @param {string} newAppExec - Path returned by `unpack`.
+   * @param {string[]} args - Arguments passed to the new application. Pass `[updater.getAppPath(), updater.getAppExec()]` so it knows where to install itself.
+   * @param {import('node:child_process').SpawnOptions} [options] - See `spawn` from the Node.js docs.
+   * @returns {import('node:child_process').ChildProcess}
+   */
+  runInstaller(newAppExec, args, options) {
+    return spawnDetached(newAppExec, args, options);
+  }
+
+  /**
+   * Installs the running application (ie. the new version started by
+   * `runInstaller`) to `copyPath`, replacing the old version. Deleting is
+   * retried for a few seconds, since the old version may still be quitting.
+   *
+   * @param {string} copyPath - Path of the old application, ie. the old version's `getAppPath()`.
+   * @param {(error: Error|null) => void} cb - Callback arguments: error
+   */
+  install(copyPath, cb) {
+    const appPath = this.getAppPath();
+    if (path.resolve(appPath) === path.resolve(copyPath)) {
+      cb(new Error(`Refusing to install ${appPath} over itself.`));
+      return;
+    }
+
+    removeWithRetries(copyPath, 50, 100)
+      .then(() => fs.promises.cp(appPath, copyPath, {
+        recursive: true,
+        force: true,
+        verbatimSymlinks: true,
+      }))
+      .then(() => {
+        cb(null);
+      })
+      .catch((err) => {
+        cb(err);
+      });
+  }
+
+  /**
+   * Runs the installed application. Quit the running (temporary) application
+   * afterwards.
+   *
+   * @param {string} execPath - Path of the installed application's executable, ie. the old version's `getAppExec()`.
+   * @param {string[]} [args] - Arguments passed to the application.
+   * @param {import('node:child_process').SpawnOptions} [options] - See `spawn` from the Node.js docs.
+   * @returns {import('node:child_process').ChildProcess}
+   */
+  run(execPath, args, options) {
+    return spawnDetached(execPath, args ?? [], options);
+  }
+}
+
+/**
+ * Start the application at `execPath` without tying its lifetime to the
+ * running process.
+ *
+ * @param {string} execPath
+ * @param {string[]} args
+ * @param {import('node:child_process').SpawnOptions} [options]
+ * @returns {import('node:child_process').ChildProcess}
+ */
+function spawnDetached(execPath, args, options) {
+  /* Archives don't always preserve the executable bit. */
+  fs.chmodSync(execPath, 0o755);
+  const child = child_process.spawn(execPath, args, {
+    cwd: path.dirname(execPath),
+    detached: true,
+    stdio: 'ignore',
+    ...options,
+  });
+  child.unref();
+  return child;
+}
+
+/**
+ * Remove `dirPath`, retrying while files are still in use.
+ *
+ * @param {string} dirPath
+ * @param {number} attempts
+ * @param {number} delay - Milliseconds between attempts.
+ * @returns {Promise<void>}
+ */
+async function removeWithRetries(dirPath, attempts, delay) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await fs.promises.rm(dirPath, { recursive: true, force: true });
+      return;
+    } catch (err) {
+      if (attempt >= attempts) {
+        throw err;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
 }
 
 export default Updater;
+export { default as AppImageUpdater } from './appImage.js';

@@ -1,10 +1,16 @@
 node_modules
 
+types
+
 cache
+types
 
 *.zip
 
 tests/fixtures/releases/app-0.0.1-linux-x64
 tests/fixtures/app-current/updater.js
+tests/fixtures/app-current/util.js
+tests/fixtures/app-current/appImage.js
+tests/fixtures/app-current/version.js
 tests/fixtures/app-latest
 tests/fixtures/nwjs-user-data
