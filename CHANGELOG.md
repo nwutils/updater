@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/nwutils/updater/compare/v0.6.0...v0.6.1) (2026-11-02)
+
+
+### Chores
+
+* **deps:** bump @types/node from 26.6.3 to 26.6.6 in the npm group ([#198](https://github.com/nwutils/updater/issues/198)) ([04193a2](https://github.com/nwutils/updater/commit/04193a2b4f72419be2a346c8d49423a10c997674))
+
 ## [0.6.0](https://github.com/nwutils/updater/compare/v0.5.0...v0.6.0) (2026-10-16)
 
 
