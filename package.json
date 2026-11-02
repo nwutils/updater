@@ -1,6 +1,6 @@
 {
   "name": "@nwutils/updater",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Self update NW.js applications packaged as AppImages, NSIS installers and DMGs",
   "keywords": [
     "NW.js",
